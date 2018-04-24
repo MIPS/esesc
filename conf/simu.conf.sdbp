@@ -1,0 +1,392 @@
+# SCOORE Constants
+memLatency        = 180 # 110ns chromebook
+memLevel         = "BigMem Memory" # No BW model
+#memLevel          = "AdvMem MemBus" # No Pref
+#memLevel          = "MemCtrl MemBus" # No Pref
+#memLevel         = "PBuff PBuff"  # Prefetching, Not ready yet.
+#memLevel         = "GHBuffer Prefetcher" # No Pref
+memBW    =   11 #chromebook 11   # 4GHz :  64 (L2)/11 ~ 6 bytes per cycle ~ 24GBytes/s (23.2)
+l3size   =   4*1024*1024
+#memBW    =   32   # 4GHz :  64 (L2)/32 ~ 2 bytes per cycle ~ 8GBytes/s (23.2)
+
+xtradelay = 0
+iw      = 8
+mw      = $(iw)/4
+xbar    = $(mw)-1
+xclu    = $(iw)/4 #x is the number of clusters 
+
+#DL1Sel  = "DL1xcore DL1"
+DL1Sel  = "DL1xbar xbar"
+#DL1Sel  = "PrefetchEngine PF"
+
+
+[tradCORE]
+type              = "ooo"
+areaFactor        = 2
+fetchWidth        = 2*$(iw)
+alignedFetch      = false
+traceAlign        = true
+fetchPorts        = 4
+instQueueSize     = 4*$(iw)
+throttlingRatio   = 1.0
+issueWidth        = $(iw)
+retireWidth       = $(iw)+2
+decodeDelay       = 2
+renameDelay       = 2
+retireDelay       = 2
+drainOnMiss       = false
+maxBranches       = 2048+1024
+bb4Cycle          = 16
+maxIRequests      = 4
+interClusterLat   = 0
+clusterScheduler  = "RoundRobin"
+#clusterScheduler  = "Use"
+cluster[0:$(xclu)-1]        = 'SUNIT'
+#cluster[1]        = 'SUNIT'
+#cluster[2]        = 'SUNIT'
+#cluster[3]        = 'SUNIT'
+#cluster[4]        = 'SUNIT' 
+#cluster[5]        = 'SUNIT'
+bpredDelay        = 1
+#bpred            = 'BPredIssueX_imli'
+bpred             = 'BPredIssueX_fast'
+bpred2            = 'BPredIssueX_imli'
+bpred3            = 'BPredIssueX_data'  # Enable Data Prefetch Branch Predictor
+bpredMeta         = 'BPredIssueX_meta'
+robSize           = 32*$(iw)
+stForwardDelay    = 3  # +1 clk from the instruction latency
+maxLoads          = 8*$(iw)  # LD/ST/cluster depednent
+maxStores         = 6*$(iw)  # LD/ST/cluster depednent
+prefetcher        = "PrefetchEngine"
+DL1               = "$(DL1Sel)"
+IL1               = "IL1_core IL1"
+MemoryReplay      = false
+enableICache      = false #was true
+enableDCache      = true #was "true"
+noMemSpec         = false
+StoreSetSize      = 8192
+#LFSTSize          = 512 not in new simu.conf
+instWidth         = 32
+opcodeWidth       = 11
+nArchRegs         = 32
+nTotalRegs        = 24*$(iw)
+scbSize           = 16
+
+#########
+[SUNIT]
+blockName         = "AUNIT"
+nRegs             = 8192
+winSize           = 8*$(iw)/$(xclu)
+recycleAt         = 'execute'      # Recycle entries at : Execute|Retire
+#lateAlloc         = true
+schedNumPorts     = $(iw)/$(xclu)
+schedPortOccp     = 1
+schedDelay        = 0
+iBALU_LBRANCHLat  = 4+$(xtradelay)
+iBALU_LBRANCHUnit = 'MUNIT_SALU'
+iBALU_LJUMPLat    = 4+$(xtradelay)
+iBALU_LJUMPUnit   = 'MUNIT_SALU'
+iBALU_LCALLLat    = 4+$(xtradelay)
+iBALU_LCALLUnit   = 'MUNIT_SALU'
+iBALU_RBRANCHLat  = 4+$(xtradelay)
+iBALU_RBRANCHUnit = 'MUNIT_SALU'
+iBALU_RJUMPLat    = 4+$(xtradelay)
+iBALU_RJUMPUnit   = 'MUNIT_SALU'
+iBALU_RCALLLat    = 4+$(xtradelay)
+iBALU_RCALLUnit   = 'MUNIT_SALU'
+iBALU_RETLat      = 4+$(xtradelay)
+iBALU_RETUnit     = 'MUNIT_SALU'
+iAALULat          = 1+$(xtradelay)
+iAALUUnit         = 'MUNIT_SALU'
+iSALU_STLat       = 0+$(xtradelay)
+iSALU_STUnit      = 'MUNIT_STALU'
+iSALU_LLLat       = 0+$(xtradelay)
+iSALU_LLUnit      = 'MUNIT_MALU'
+iSALU_SCLat       = 0+$(xtradelay)
+iSALU_SCUnit      = 'MUNIT_MALU'
+iSALU_ADDRLat     = 0+$(xtradelay)
+iSALU_ADDRUnit    = 'MUNIT_MALU'
+iLALU_LDLat       = 0+$(xtradelay)
+iLALU_LDUnit      = 'MUNIT_MALU'
+iCALU_MULTLat     = 1+$(xtradelay)
+iCALU_MULTUnit    = 'MUNIT_SALU'
+iCALU_DIVLat      = 1+$(xtradelay)
+iCALU_DIVUnit     = 'MUNIT_SALU'
+iRALULat          = 1+$(xtradelay)
+iRALUUnit         = 'UNIT_UNLIMIT'
+iCALU_FPMULTLat   = 1+$(xtradelay)
+iCALU_FPMULTUnit  = 'CUNIT_CALU'
+iCALU_FPDIVLat    = 1+$(xtradelay)
+iCALU_FPDIVUnit   = 'CUNIT_CALU'
+iCALU_FPALULat    = 1+$(xtradelay)
+iCALU_FPALUUnit   = 'CUNIT_CALU'
+
+[MUNIT_MALU]
+Num               = $(mw)/$(xclu)
+Occ               = 1   # was 1 - testing with occ=0
+
+[MUNIT_STALU]
+Num               = $(mw)/$(xclu)
+Occ               = 1
+
+[MUNIT_SALU]
+Num               = $(iw)/$(xclu)
+Occ               = 1
+
+[UNIT_UNLIMIT]
+Num               = $(iw)/$(xclu)
+Occ               = 0
+
+[CUNIT_CALU]
+Num               = $(iw)/2/$(xclu)
+Occ               = 1
+
+[BPredIssueX_imli]
+#type              = "ogehl"
+type             = "imli"
+bimodalSize      = 8192*2
+bimodalWidth     = 2
+nhist            = 4*2
+statcorrector    = true
+FetchPredict      = false
+addrShift         = 0
+BTACDelay         = 4
+btbSize           = 0
+btbBsize          = 1
+btbAssoc          = 4
+btbReplPolicy     = 'LRU'
+rasSize           = 0
+numBanks            = 1
+rasPrefetch       = 0
+
+[BPredIssueX_meta]
+btbSize   =0
+bits      =2
+type      ='2bit'
+size      =2048
+
+[BPredIssueX_data]
+size      =1048576
+#size      =16384
+bits      =3
+type      ='tdata'
+btbSize   =0
+addrShift =0
+
+
+[BPredIssueX_fast]
+type             = "2bit"
+bits              = 2
+size              = 2048
+BTACDelay         = 3
+btbSize           = 64
+btbBsize          = 1
+btbAssoc          = 64
+btbReplPolicy     = 'LRU'
+rasSize           = 0
+numBanks          = 1
+rasPrefetch       = 0
+
+###############################
+[PrefetchEngine]
+type              = 'Stride'
+#type              = 'tage'
+#type              = 'void'
+#type              = 'indirect'
+bimodalSize       = 1024
+bimodalWidth      = 4
+nhist             = 5
+deviceType        = 'Prefetcher'
+maxPrefetch       = 16
+minDistance       = 1
+pfStride          = 1
+blockName         = "PF"
+
+[IL1_core]
+deviceType        = 'icache'
+blockName         = "Icache"
+coreCoupledFreq   = true
+inclusive         = true
+directory         = false
+numBanks          = 1
+maxRequests       = 8
+prefetchDegree    = 0
+size              = 64*1024
+assoc             = 4
+bsize             = 256
+#bsize             = 512
+replPolicy        = 'LRU'
+#bkNumPorts        = 1
+bkNumPorts        = 1
+bkPortOccp        = 1
+hitDelay          = 2
+missDelay         = 1
+#lowerLevel        = "PrivL2 L2 sharedby 4"
+#lowerLevel        = "PrivL2x L2I sharedby 4"
+lowerLevel       = "L3Cache L3 shared"
+#lowerLevel        = "$(memLevel)"
+pfetchBuffSize   = 16
+
+[DL1xbar]
+deviceType        = 'memxbar'
+blockName         = "memxbar"
+coreCoupledFreq   = true
+dropBits          = 6
+bsize             = 64
+lowerLevel[0:$(xbar)]   = "DL1xcore DL1"  # XBAR
+
+
+[DL1xcore]
+deviceType        = 'cache'
+xorIndex          = true
+coreCoupledFreq   = true
+inclusive         = false  # Top level does not need it
+incoherent        = false
+directory         = false
+blockName         = "DL1"
+prefetchDegree    = 2
+dupPrefetchTag    = true
+dropPrefetchFill  = true
+dropPrefetch      = true
+nlprefetch        = 3 # 3
+nlprefetchStride  = $(mw) # 1
+nlprefetchDistance  = 1 # 1
+size              = 32*1024
+assoc             = 4
+skew              = false
+bsize             = 64
+#bsize             = 128
+replPolicy        = 'LRU'
+hitDelay          = 4 #+1 from the ALU
+missDelay         = 3
+#lowerLevel        = "PrivL2x L2x sharedby 4"
+lowerLevel        = "PrivL2x"
+#lowerLevel        = "$(memLevel)"
+fillBuffSize      = 4
+pfetchBuffSize    = 16
+wbBuffSize        = 16
+numBanks          = 2
+bkNumPorts        = 2
+bkPortOccp        = 1  # KEY
+maxRequests       = 32
+megaRatio         = 0.85
+#bankShift         = 6
+coldwarmup        = false
+sendFillPortOccp  = 1
+sendFillNumPorts  = 2
+
+[PrivL2x]
+deviceType        = 'cache'
+xorIndex          = true
+coreCoupledFreq   = false
+inclusive         = true
+directory         = false
+blockName         = "L2x"
+maxRequests       = 32
+dropPrefetch      = true
+dupPrefetchTag    = true
+dropPrefetchFill  = true
+prefetchDegree    = 16
+nlprefetch        = 0 # 1
+nlprefetchStride  = $(mw) # 1
+nlprefetchDistance  = 1 # 1
+megaRatio         = 0.75
+size              = 512*1024
+assoc             = 8
+bsize             = 64
+replPolicy        = 'LRU'
+#replPolicy        = 'hawkeye'
+#replPolicy        = 'PAR'
+numBanks          = 2
+bkNumPorts        = 1
+bkPortOccp        = 1
+hitDelay          = 12
+missDelay         = 1
+lowerLevel       = "L3Cache L3 shared"
+#lowerLevel        = "$(memLevel)"
+fillBuffSize      = 4
+pfetchBuffSize    = 16
+wbBuffSize        = 16
+forceLkg          = 0.0712786/6 #Cacti6.5
+recvFillWidth     = 16 # 4 cycles
+sendFillPortOccp  = 1  # KEY
+sendFillNumPorts  = 1
+
+[MemCtrl]
+deviceType  = 'memcontroller'
+coreCoupledFreq = false
+blockName         = "memctrl"
+busWidth    =   64
+numPorts    =    1
+portOccp    =   $(memBW)
+delay       =    3
+NumBanks    =  256 # 512
+NumRows     = 8192
+NumColumns  = 1024
+ColumnSize  =  256
+PreChargeLatency     = 52
+RowAccessLatency     = 52
+ColumnAccessLatency  = 52  #Column access of 1 is not supported
+memRequestBufferSize = 32
+lowerLevel           = "voidDevice"
+# Power Metrics
+dramPageSize = 1024
+
+[AdvMem]
+deviceType        = 'bus'
+blockName         = 'MemBus'
+coreCoupledFreq   = true
+busWidth          = 64
+numPorts          = 1
+portOccp          = $(memBW)
+delay             = 1
+isMemoryBus       = false
+dramPageSize      = 8
+lowerLevel        = "BigMem"
+
+[L3Cache]
+deviceType        = 'cache'
+xorIndex          = true
+coreCoupledFreq   = false
+inclusive         = true
+directory         = true
+blockName         = "L3"
+maxRequests       = 32
+dropPrefetch      = true
+dupPrefetchTag    = true
+dropPrefetchFill  = false
+prefetchDegree    = 1024
+nlprefetch        = 1
+nlprefetchStride  = $(mw) # 1
+nlprefetchDistance  = 1
+size              = $(l3size)
+assoc             = 32
+bsize             = 64
+replPolicy        = 'LRU'
+#replPolicy        = 'PAR'
+numBanks          = 8
+bkNumPorts        = 1
+bkPortOccp        = 1
+hitDelay          = 14
+missDelay         = 1
+lowerLevel        = "$(memLevel)"
+fillBuffSize      = 4
+pfetchBuffSize    = 16
+wbBuffSize        = 16
+forceLkg          = 0.028384/2 #0.14192 #Cacti6.5
+sendFillPortOccp  = 0
+sendFillNumPorts  = 1
+recvFillWidth     = 16 # 4 cycles
+
+[BigMem]
+deviceType        = 'niceCache'
+blockName         = 'mainmem'
+bsize             = 64
+hitDelay          = $(memLatency)
+lowerLevel        = "voidDevice"
+coldWarmup        = false
+
+[voidDevice]
+deviceType        = 'void'
+
+

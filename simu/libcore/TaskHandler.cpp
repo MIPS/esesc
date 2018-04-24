@@ -40,6 +40,7 @@
 #include "EmuSampler.h"
 #include "EmulInterface.h"
 #include <string.h>
+#include <iostream>
 /* }}} */
 
 std::vector<TaskHandler::EmulSimuMapping >   TaskHandler::allmaps;
@@ -546,6 +547,14 @@ void TaskHandler::plugEnd()
 void TaskHandler::unplug() 
   /* delete objects {{{1 */
 {
+#ifdef WAVESNAP_EN
+  for(size_t i=0; i<cpus.size() ; i++) {
+    if (i==0) {
+      cpus[i]->snap->dumpGraph("dump.txt");
+    }
+  }
+#endif
+
 #if 0
   for(size_t i=0; i<cpus.size() ; i++) {
     delete cpus[i];

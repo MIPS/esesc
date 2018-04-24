@@ -228,6 +228,8 @@ void EmuSampler::beginTiming(EmuMode mod)
   // phasenInst         = 0;
   mode = mod;
 
+  syncTime();
+
   clock_gettime(CLOCK_REALTIME,&startTime);
 
   const char *mode2name[] = { "Init","Rabbit","Warmup","Detail","Timing","InvalidValue"};
@@ -236,6 +238,10 @@ void EmuSampler::beginTiming(EmuMode mod)
 /*  */
 
 void EmuSampler::syncTime() {
+
+  if (globalClock_Timing_prev == globalClock)
+    return;
+
   struct timespec endTime;
   clock_gettime(CLOCK_REALTIME,&endTime);
   uint64_t usecs = endTime.tv_sec - startTime.tv_sec;
@@ -339,12 +345,12 @@ void EmuSampler::startTiming(FlowID fid)
 {
   //MSG("Sampler:STARTTIMING");
   //I(stopJustCalled);
-  globalClock_Timing_prev = globalClock; 
 
   //if (mode!=EmuTiming)
   emul->startTiming(fid);
 
   beginTiming(EmuTiming);
+
 }
 /*  */
 

@@ -180,7 +180,7 @@ class StaticCallbackBase : public CallbackBase {
 
 
 /////////////////////////////////////////////////////////////////////////////
-//  
+//
 // DESCRIPTION:
 //
 // This is a concrete class that implements the interface for the Callback
@@ -193,21 +193,21 @@ template<class Parameter1, class Parameter2, class Parameter3
          , void (*funcPtr) (Parameter1, Parameter2, Parameter3)>
 class CallbackFunction3
   : public CallbackBase {
-private:      
+private:
   typedef pool<CallbackFunction3> poolType;
   static poolType cbPool;
   friend class pool<CallbackFunction3>;
-              
+
   Parameter1 p1;
   Parameter2 p2;
   Parameter3 p3;
-              
-protected:    
+
+protected:
   CallbackFunction3() {
   }
   virtual ~CallbackFunction3() {
   }
-public:       
+public:
   static CallbackFunction3 *create(Parameter1 a1, Parameter2 a2, Parameter3 a3) {
     CallbackFunction3 *cb = cbPool.out();
     cb->p1 = a1;
@@ -248,14 +248,14 @@ public:
   void setParam1(Parameter1 a1) {
     p1 = a1;
   }
-}; 
+};
 
 template<class Parameter1, class Parameter2, class Parameter3, void (*funcPtr) (Parameter1, Parameter2, Parameter3)>
-typename CallbackFunction3<Parameter1,Parameter2,Parameter3,funcPtr>::poolType 
+typename CallbackFunction3<Parameter1,Parameter2,Parameter3,funcPtr>::poolType
   CallbackFunction3<Parameter1,Parameter2,Parameter3,funcPtr>::cbPool(32, "CBF3");
 
 
-template<class Parameter1, class Parameter2,void (*funcPtr) (Parameter1, Parameter2)> 
+template<class Parameter1, class Parameter2,void (*funcPtr) (Parameter1, Parameter2)>
 class CallbackFunction2
   : public CallbackBase {
 private:
@@ -678,12 +678,7 @@ CallbackMember5<ClassType,Parameter1,Parameter2,Parameter3,Parameter4,Parameter5
 
 /************************************************************************************/
 
-
-
-
-
-
-template<class ClassType ,class Parameter1 ,class Parameter2, class Parameter3, class Parameter4 
+template<class ClassType ,class Parameter1 ,class Parameter2, class Parameter3, class Parameter4
          ,void (ClassType::*memberPtr) (Parameter1, Parameter2, Parameter3, Parameter4)> 
 class CallbackMember4
   :public CallbackBase {
@@ -694,15 +689,15 @@ private:
 
   Parameter1 p1;
   Parameter2 p2;
-  Parameter3 p3; 
+  Parameter3 p3;
   Parameter4 p4;
- 
+
   ClassType *instance;
 
 protected:
-  CallbackMember4(){ 
+  CallbackMember4(){
   }
-  virtual ~CallbackMember4(){ 
+  virtual ~CallbackMember4(){
   }
 public:
   static CallbackMember4 *create(ClassType *i, Parameter1 a1, Parameter2 a2, Parameter3 a3, Parameter4 a4) {

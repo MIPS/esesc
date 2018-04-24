@@ -49,30 +49,33 @@ MemXBar::MemXBar(const char *section ,const char *name)
 }/*}}}*/
 
 MemXBar::MemXBar(MemorySystem* current ,const char *section ,const char *name)
-  /* constructor */
-  : GXBar(section, name)
-{/*{{{*/
-  
+  /* {{{ constructor */
+  : GXBar(section, name) {
+
   I(current);
-  char * tmp;
-  lower_level_banks = NULL; 
-  
+  lower_level_banks = NULL;
+
   setParam(section, name);
 
   lower_level_banks = new MemObj     *[numLowerLevelBanks];
   XBar_rw_req       = new GStatsCntr *[numLowerLevelBanks];
 
   std::vector<char *> vPars = SescConf->getSplitCharPtr(section, "lowerLevel");
+  const char *lower_name = "";
+  if (vPars.size()>1)
+    lower_name = vPars[1];
 
   for(size_t i=0;i<numLowerLevelBanks;i++) {    
-    tmp = (char*)malloc(255);
-    sprintf(tmp,"%s(%lu)",vPars[1],i);
+    char *tmp = (char*)malloc(255);
+    if (numLowerLevelBanks>1)
+      sprintf(tmp,"%s%s(%lu)",name,lower_name,i);
+    else
+      sprintf(tmp,"%s%s",name,lower_name,i);
     lower_level_banks[i] = current->declareMemoryObj_uniqueName(tmp,vPars[0]);         
     addLowerLevel(lower_level_banks[i]);
 
     XBar_rw_req[i]   = new GStatsCntr("%s_to_%s:rw_req",name,lower_level_banks[i]->getName());
   }
-
 }
 /* }}} */
 
@@ -86,10 +89,13 @@ void MemXBar::setParam(const char *section, const char *name)
 
 }/*}}}*/
 
-uint32_t MemXBar::addrHash(AddrType addr) const {
+uint32_t MemXBar::addrHash(AddrType addr) const 
+// {{{ drop lower bits in address
+{
   addr = addr >> dropBits;
   return(addr % numLowerLevelBanks);
 }
+// }}}
 
 void MemXBar::doReq(MemRequest *mreq)
   /* read if splitter above L1 (down) {{{1 */
@@ -97,7 +103,7 @@ void MemXBar::doReq(MemRequest *mreq)
   if(mreq->getAddr() == 0) {
     mreq->ack();
     return;
-  } 
+  }
 
   uint32_t pos = addrHash(mreq->getAddr());
   I(pos<numLowerLevelBanks);
@@ -126,6 +132,7 @@ void MemXBar::doSetState(MemRequest *mreq)
   /* setState (up) {{{1 */
 {  
   //FIXME
+  I(0); // You should check the L1 as incoherent, so that it does not send invalidated to higher levels
     router->sendSetStateAll(mreq, mreq->getAction());
 }
 /* }}} */
@@ -145,7 +152,7 @@ void MemXBar::doDisp(MemRequest *mreq)
 {
   uint32_t pos = addrHash(mreq->getAddr());
   router->scheduleDispPos(pos, mreq);
-	// I(0); 
+	I(0); 
 	// FIXME: use dinst->getPE() to decide who to send up if GPU mode
 }
 /* }}} */
@@ -158,11 +165,11 @@ bool MemXBar::isBusy(AddrType addr) const
 }
 /* }}} */
 
-void MemXBar::tryPrefetch(AddrType addr, bool doStats)
+void MemXBar::tryPrefetch(AddrType addr, bool doStats, int degree, AddrType pref_sign, AddrType pc, CallbackBase *cb)
   /* fast forward reads {{{1 */
-{ 
+{
   uint32_t pos = addrHash(addr);
-  router->tryPrefetchPos(pos, addr, doStats);
+  router->tryPrefetchPos(pos, addr, degree, doStats, pref_sign, pc, cb);
 }
 /* }}} */
 

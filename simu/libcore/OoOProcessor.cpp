@@ -36,22 +36,24 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-
+#include <fstream>
 #include <math.h>
 
 #include "SescConf.h"
 
 #include "OoOProcessor.h"
-
 #include "TaskHandler.h"
 #include "FetchEngine.h"
 #include "GMemorySystem.h"
 #include "EmuSampler.h"
 
+
 /* }}} */
+
 //#define ESESC_CODEPROFILE
+//#define ESESC_BRANCHPROFILE
 // FIXME: to avoid deadlock, prealloc n to the n oldest instructions
-//#define LATE_ALLOC_REGISTER
+#define LATE_ALLOC_REGISTER
 
 OoOProcessor::OoOProcessor(GMemorySystem *gm, CPU_t i)
   /* constructor {{{1 */
@@ -64,6 +66,10 @@ OoOProcessor::OoOProcessor(GMemorySystem *gm, CPU_t i)
   ,retire_lock_checkCB(this)
   ,clusterManager(gm, i, this)
   ,avgFetchWidth("P(%d)_avgFetchWidth",i)
+#ifdef TRACK_TIMELEAK
+  ,avgPNRHitLoadSpec("P(%d)_avgPNRHitLoadSpec",i)
+  ,avgPNRMissLoadSpec("P(%d)_avgPNRMissLoadSpec",i)
+#endif
 #ifdef TRACK_FORWARDING
   ,avgNumSrc("P(%d)_avgNumSrc",i)
   ,avgNumDep("P(%d)_avgNumDep",i)
@@ -112,6 +118,7 @@ OoOProcessor::OoOProcessor(GMemorySystem *gm, CPU_t i)
     scooreMemory=SescConf->getBool("cpusimu", "scooreMemory",gm->getCoreId());
   else
     scooreMemory = false;
+
 }
 /* }}} */
 
@@ -249,6 +256,8 @@ bool OoOProcessor::advance_clock(FlowID fid)
 void OoOProcessor::executing(DInst *dinst) 
   // {{{1 Called when the instruction starts to execute
 {
+    dinst->markExecuting();
+
 #ifdef LATE_ALLOC_REGISTER
     if (dinst->getInst()->hasDstRegister())
       nTotalRegs--;
@@ -303,10 +312,10 @@ void OoOProcessor::executed(DInst *dinst) {
 StallCause OoOProcessor::addInst(DInst *dinst)
   /* rename (or addInst) a new instruction {{{1 */
 {
+
   if(replayRecovering && dinst->getID() > replayID) {
     return ReplaysStall;
   }
-
   if( (ROB.size()+rROB.size()) >= MaxROBSize )
     return SmallROBStall;
 
@@ -327,6 +336,8 @@ StallCause OoOProcessor::addInst(DInst *dinst)
     return sc;
   }
 
+// if no stalls were detected do the following:
+//
   // BEGIN INSERTION (note that cluster already inserted in the window)
   // dinst->dump("");
 
@@ -412,7 +423,6 @@ StallCause OoOProcessor::addInst(DInst *dinst)
   ROB.push(dinst);
 
   I(dinst->getCluster() != 0); // Resource::schedule must set the resource field
-
   int n = 0;
   if( !dinst->isSrc2Ready() ) {
     // It already has a src2 dep. It means that it is solved at
@@ -435,8 +445,10 @@ StallCause OoOProcessor::addInst(DInst *dinst)
       //MSG("addDep2 %8ld->%8lld %lld",RAT[inst->getSrc2()]->getID(), dinst->getID(), globalClock);
     }
   }
+#ifdef TRACK_FORWARDING
   avgNumSrc.sample(inst->getnsrc(), dinst->getStatsFlag());
   avgNumDep.sample(n,dinst->getStatsFlag());
+#endif
 
   dinst->setRAT1Entry(&RAT[inst->getDst1()]);
   dinst->setRAT2Entry(&RAT[inst->getDst2()]);
@@ -453,6 +465,24 @@ StallCause OoOProcessor::addInst(DInst *dinst)
   I(dinst->getCluster());
 
   dinst->markRenamed();
+
+#ifdef WAVESNAP_EN
+/////////////////////////////////////////
+// RECORD DEPENDENCIES
+/////////////////////////////////////////
+if (inst->isMemory()) {
+  if (inst->isStore()) {
+    snap->addStore(dinst);
+  }
+  if (inst->isLoad()) {
+    snap->addLoad(dinst);
+  }
+} else if (inst->isControl()) {
+  //TODO
+} else {
+  snap->add(dinst);  
+}
+#endif
 
   return NoStall;
 }
@@ -501,12 +531,37 @@ void OoOProcessor::retire()
       break;
     }
 
+    I(IFID.getMissDInst() != dinst);
+
     rROB.push(dinst);
     ROB.pop();
   }
 
-  if(!ROB.empty())
-    robUsed.sample(ROB.size(), ROB.top()->getStatsFlag());
+  if(!ROB.empty() && ROB.top()->getStatsFlag()) {
+    robUsed.sample(ROB.size(), true);
+#ifdef TRACK_TIMELEAK
+    int total_hit = 0;
+    int total_miss = 0;
+    for(uint32_t i=0;i<ROB.size();i++) {
+      uint32_t pos = ROB.getIDFromTop(i);
+      DInst *dinst = ROB.getData(pos);
+
+      if (!dinst->getStatsFlag())
+        continue;
+      if (!dinst->getInst()->isLoad())
+        continue;
+      if (dinst->isPerformed())
+        continue;
+
+      if (dinst->isFullMiss())
+        total_miss++;
+      else
+        total_hit++;
+    }
+    avgPNRHitLoadSpec.sample(total_hit,true);
+    avgPNRMissLoadSpec.sample(true,total_miss);
+#endif
+  }
 
   if(!rROB.empty()) {
     rrobUsed.sample(rROB.size(), rROB.top()->getStatsFlag());
@@ -518,11 +573,11 @@ void OoOProcessor::retire()
 
         codeProfile_trigger = clockTicks.getDouble() + 121;
 
-        double wt = dinst->getIssuedTime() - dinst->getRenamedTime();
-        double et = dinst->getExecutedTime() - dinst->getIssuedTime();
-        bool   flush = dinst->getFetch()!=0?1:0;
+        double wt  = dinst->getIssuedTime()   - dinst->getRenamedTime();
+        double et  = dinst->getExecutedTime() - dinst->getIssuedTime();
+        bool flush = dinst->isBranchMiss();
 
-        codeProfile.sample(rROB.top()->getPC(),nCommitted.getDouble(), clockTicks.getDouble(), wt, et, flush);
+        codeProfile.sample(rROB.top()->getPC(),nCommitted.getDouble(), clockTicks.getDouble(), wt, et, flush, dinst->isPrefetch());
       }
     }
 #endif
@@ -568,9 +623,19 @@ void OoOProcessor::retire()
       flushing_fid = fid;
     }
 
+#ifdef FETCH_TRACE
+    // Call eint->markTrace
+#endif
+
     nCommitted.inc(!flushing && dinst->getStatsFlag());
 
-#ifdef ESESC_TRACE
+#ifdef ESESC_BRANCHPROFILE
+    if (dinst->getInst()->isBranch() && dinst->getStatsFlag()) {
+      codeProfile.sample(dinst->getPC(),dinst->getID(),0,dinst->isBiasBranch()?1.0:0, 0, dinst->isBranchMiss(), dinst->isPrefetch());
+    }
+#endif
+
+#ifdef ESESC_TRACE2
     MSG("TR %8lld %8llx R%-2d,R%-2d=R%-2d op=%-2d R%-2d   %lld %lld %lld %lld %lld"
         ,dinst->getID()
         ,dinst->getPC()
@@ -585,6 +650,23 @@ void OoOProcessor::retire()
         ,dinst->getExecutedTime()
         ,globalClock);
 #endif
+#ifdef ESESC_TRACE
+    MSG("TR %8lld %8llx R%-2d,R%-2d=R%-2d op=%-2d R%-2d   %lld %lld %lld %lld %lld"
+        ,dinst->getID()
+        ,dinst->getPC()
+        ,dinst->getInst()->getDst1()
+        ,dinst->getInst()->getDst2()
+        ,dinst->getInst()->getSrc1()
+        ,dinst->getInst()->getOpcode()
+        ,dinst->getInst()->getSrc2()
+        ,dinst->getFetchedTime()-globalClock
+        ,dinst->getRenamedTime()-globalClock
+        ,dinst->getIssuedTime()-globalClock
+        ,dinst->getExecutedTime()-globalClock
+        ,globalClock-globalClock);
+#endif
+
+
 
 #if 0
     dinst->dump("RT ");

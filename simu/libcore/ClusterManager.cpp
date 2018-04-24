@@ -49,15 +49,15 @@ ClusterManager::ClusterManager(GMemorySystem *ms, uint32_t cpuid, GProcessor *gp
   IN(forall((size_t i=1;i<static_cast<size_t>(iMAX);i++),res[i].empty()));
 
   const char *coreSection = SescConf->getCharPtr("","cpusimu",cpuid);
-  if(coreSection == 0) 
+  if(coreSection == 0)
     return;  // No core section, bad conf
 
   int32_t nClusters = SescConf->getRecordSize(coreSection,"cluster");
-  
+
   for(int32_t i=0;i<nClusters;i++) {
     const char *clusterName = SescConf->getCharPtr(coreSection,"cluster",i);
     SescConf->isCharPtr(coreSection,"cluster",i);
-    
+
     Cluster *cluster = Cluster::create(clusterName, i, ms, cpuid, gproc);
 
     for(int32_t t = 0; t < iMAX; t++) {

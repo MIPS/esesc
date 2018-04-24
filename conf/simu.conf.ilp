@@ -10,13 +10,13 @@ l3size   =   8*1024*1024
 #memBW    =   32   # 4GHz :  64 (L2)/32 ~ 2 bytes per cycle ~ 8GBytes/s (23.2)
 
 xtradelay = 0
-iw = 32
+iw = 128
 mw = $(iw)/4
 fw = 2*$(iw)
 corecount=1
-#DL1Sel  = "MemoryCluster mxbar"
+DL1Sel  = "MemoryCluster mxbar"
 #DL1Sel  = "DL1x_core DL1"
-DL1Sel  = "PF_Stride PF"
+#DL1Sel  = "PF_Stride PF"
 
 n = 2*$(iw)
 x = 1 #x is the number of clusters
@@ -37,9 +37,9 @@ throttlingRatio   = 1.0
 #retireWidth       = 4*$(iw)
 issueWidth        = $(iw)
 retireWidth       = 2*$(iw)
-decodeDelay       = 3
-renameDelay       = 2
-retireDelay       = 3
+decodeDelay       = 3 
+renameDelay       = 2 
+retireDelay       = 3 
 drainOnMiss       = false
 maxBranches       = 2048+1024
 bb4Cycle          = 16 #1
@@ -56,9 +56,9 @@ cluster[0]        = 'SUNIT'
 #cluster[3]        = 'SUNIT'
 #cluster[4]        = 'SUNIT' 
 #cluster[5]        = 'SUNIT'
-#bpred             = 'BPredIssueX2' 
-bpred             = 'BPredIssueX_fast'
-bpred2            = 'BPredIssueX_imli'
+bpred             = 'BPredIssueX2' 
+#bpred             = 'BPredIssueX_fast'
+#bpred2            = 'BPredIssueX_imli'
 #bpred2            = 'BPredIssueX2'
 #robSize           = 4096+96*$(n)
 robSize           = 160*$(mw)
@@ -70,8 +70,8 @@ DL1               = "$(DL1Sel)"
 #DL1              = "DL1x_core DL1"
 IL1               = "IL1_core IL1"
 MemoryReplay      =  false
-enableICache      = true #was true
-enableDCache      = true #was "true"
+enableICache      = false #was true
+enableDCache      = false #was "true"
 noMemSpec         = false 
 StoreSetSize      = 8192
 #LFSTSize          = 512 not in new simu.conf
@@ -91,7 +91,7 @@ winSize           = 48*$(mw)
 recycleAt         = 'execute'      # Recycle entries at : Execute|Retire
 #lateAlloc         = true
 schedNumPorts     = $(iw)/$(x)   # issue width/#clusters
-schedPortOccp     = 1
+schedPortOccp     = 1 # FIXME
 schedDelay        = 0
 iBALU_LBRANCHLat  = 4+$(xtradelay)
 iBALU_LBRANCHUnit = 'MUNIT_SALU'
@@ -134,23 +134,23 @@ iCALU_FPALUUnit   = 'CUNIT_CALU'
 
 [MUNIT_MALU]
 Num               = $(mw) 
-Occ               = 1   # was 1 - testing with occ=0 
+Occ               = 0   # was 1 - testing with occ=0 
 
 [MUNIT_STALU]
 Num               = $(mw) 
-Occ               = 1
+Occ               = 0
 
 [MUNIT_SALU]
 Num               = $(iw)-$(mw)  # Better $(iw)-$(mw)
-Occ               = 1
+Occ               = 0
 
 [UNIT_UNLIMIT]
 Num               = $(iw)
-Occ               = 1
+Occ               = 0
 
 [CUNIT_CALU]
 Num               = $(iw)/2  # Maybe $(iw)/4
-Occ               = 1
+Occ               = 0
 
 [AUNIT]
 blockName         = "AUNIT"
@@ -377,11 +377,11 @@ numBanks            = 1
 
 ###############################
 [PF_Stride]
-#type              = 'Stride'
-type              = 'tage'
+type              = 'Stride'
+#type              = 'tage'
 bimodalSize       = 1024
 bimodalWidth      = 4
-nhist             = 4
+nhist             = 3
 deviceType        = 'Prefetcher'
 maxPrefetch       = 31
 minDistance       = 1
@@ -392,7 +392,6 @@ lowerLevel        = "MemoryCluster"
 [MemoryCluster]
 deviceType        = 'memxbar'
 lowerLevel[0:$(mw)-1] = "DL1x_core DL1"
-bsize             = 64
 dropBits          = 6
 
 [IL1_core]
@@ -431,6 +430,8 @@ incoherent        = false
 directory         = false
 #blockName         = "dcache"
 blockName         = "DL1"
+#size              = $(n)*16*1024
+#size              = $(x)*16*1024
 size              = 32*1024
 assoc             = 8
 skew              = false
@@ -448,9 +449,9 @@ bkNumPorts        = 1
 bkPortOccp        = 0  # FIXME: 1 once we instantiate many caches
 #maxRequests       = 16*$(n)
 maxRequests       = 64
-nlprefetch        = 8 # 64
+nlprefetch        = 2 # 64
 maxPrefetch       = 32
-prefetchDegree    = 1
+prefetchDegree    = 8
 dropPrefetch      = true
 dropPrefetchFill  = false
 dupPrefetchTag    = true
@@ -469,8 +470,8 @@ incoherent        = false
 blockName         = "L2x"
 numBanks          = 2
 maxRequests       = 4*16
-nlprefetch        = 1
-maxPrefetch       = 16
+nlprefetch        = 0
+maxPrefetch       = 32
 prefetchDegree    = 16
 dropPrefetch      = true
 dropPrefetchFill  = false
@@ -480,7 +481,7 @@ assoc             = 16
 bsize             = 64
 replPolicy        = 'LRU'
 bkNumPorts        = 1
-bkPortOccp        = 1  # FIXME: 2 once we have many L1/L2s
+bkPortOccp        = 0  # FIXME: 2 once we have many L1/L2s
 hitDelay          = 12
 missDelay         = 1
 lowerLevel       = "L3Cache L3 shared"
@@ -491,7 +492,6 @@ wbBuffSize        = 16
 forceLkg          = 0.0712786/6 #Cacti6.5
 sendFillPortOccp  = 0
 sendFillNumPorts  = 1
-#recvFillWidth     = 32 # 2 cycles
 
 
 [MemCtrl]
@@ -534,7 +534,7 @@ inclusive         = true
 directory         = true
 incoherent        = false
 blockName         = "L3"
-numBanks          = 8
+numBanks          = 1
 maxRequests       = 8*32*4
 nlprefetch        = 0
 maxPrefetch       = 32
@@ -547,7 +547,7 @@ assoc             = 32
 bsize             = 64
 replPolicy        = 'LRU'
 bkNumPorts        = 1
-bkPortOccp        = 1
+bkPortOccp        = 0
 hitDelay          = 14
 missDelay         = 1
 lowerLevel        = "$(memLevel)"
@@ -557,7 +557,7 @@ wbBuffSize        = 16
 forceLkg          = 0.028384/2 #0.14192 #Cacti6.5
 sendFillPortOccp  = 0
 sendFillNumPorts  = 1
-recvFillWidth     = 32 # 2 cycles
+recvFillWidth     = 16 # 4 cycles
 
 [BigMem]
 deviceType        = 'niceCache'

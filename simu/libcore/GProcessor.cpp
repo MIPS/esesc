@@ -55,6 +55,7 @@ GProcessor::GProcessor(GMemorySystem *gm, CPU_t i)
   ,MaxROBSize(SescConf->getInt("cpusimu", "robSize",i))
   ,memorySystem(gm)
   ,storeset(i)
+  ,prefetcher(gm->getDL1(),i)
   ,rROB(SescConf->getInt("cpusimu", "robSize", i))
   ,ROB(MaxROBSize)
   ,rrobUsed("P(%d)_rrobUsed", i) // avg
@@ -109,7 +110,6 @@ GProcessor::GProcessor(GMemorySystem *gm, CPU_t i)
     }
   }
 
-
   SescConf->isInt("cpusimu"    , "issueWidth" , i);
   SescConf->isLT("cpusimu"     , "issueWidth" , 1025, i);
 
@@ -135,6 +135,9 @@ GProcessor::GProcessor(GMemorySystem *gm, CPU_t i)
   eint = 0;
 
   buildInstStats(nInst, "ExeEngine");
+  #ifdef WAVESNAP_EN
+  this->snap = new wavesnap();
+  #endif
 }
 
 GProcessor::~GProcessor() {
@@ -170,7 +173,8 @@ int32_t GProcessor::issue(PipeQueue &pipeQ) {
       DInst *dinst = bucket->top();
       //  GMSG(getCoreId()==1,"push to pipe %p", bucket);
 
-      //MSG("@%lld  CPU[%d]: preaddInst dinstID=%lld PE[%d]",globalClock,cpu_id, dinst->getID(),dinst->getPE());
+      //MSG("@%lld issue dinstID=%lld",globalClock, dinst->getID());
+
       dinst->setGProc(this);
       StallCause c = addInst(dinst);
       if (c != NoStall) {

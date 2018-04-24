@@ -123,6 +123,7 @@ void DepWindow::executed(DInst *dinst) {
   I(srcCluster == dinst->getCluster());
 
   I(dinst->isIssued());
+
   while (dinst->hasPending()) {
     DInst *dstReady = dinst->getNextPending();
     I(dstReady);

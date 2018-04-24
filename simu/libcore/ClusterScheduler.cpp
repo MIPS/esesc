@@ -45,12 +45,12 @@ ClusterScheduler::ClusterScheduler(const ResourcesPoolType ores)
 }
 
 ClusterScheduler::~ClusterScheduler() {
-  
+
 }
 
 RoundRobinClusterScheduler::RoundRobinClusterScheduler(const ResourcesPoolType ores)
   : ClusterScheduler(ores) {
-  
+
   nres.resize(res.size());
   pos.resize(res.size(),0);
 
@@ -60,7 +60,7 @@ RoundRobinClusterScheduler::RoundRobinClusterScheduler(const ResourcesPoolType o
 }
 
 RoundRobinClusterScheduler::~RoundRobinClusterScheduler() {
-  
+
 }
 
 Resource *RoundRobinClusterScheduler::getResource(DInst *dinst) {
